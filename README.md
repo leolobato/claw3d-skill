@@ -55,6 +55,14 @@ CLAW3D_MODULES=ai-forger,printing ./scripts/build-skill.sh
 
 The setup script (`claw3d/scripts/setup-openclaw-docker.sh`) prompts for capabilities and builds the skill with only the selected modules. This keeps the installed skill focused and avoids unused API key requirements.
 
+## Related projects
+
+| Repo | Description |
+|------|-------------|
+| [clarvis-ai](https://github.com/makermate/clarvis-ai) | One-command distro — bundles everything into a single Docker Compose stack |
+| [claw3d](https://github.com/makermate/claw3d) | Python CLI that this skill orchestrates — AI generation, slicing, printer control |
+| [curaengine-slicer-api](https://github.com/makermate/curaengine-slicer-api) | CuraEngine REST API for slicing and mesh conversion |
+
 ## License
 
 MIT
@@ -68,6 +76,5 @@ MIT
 </p>
 
 <p align="center">
-  Built with inspiration from <a href="https://clarv.is">Clarvis</a> — the stable, tested AI 3D printing assistant.<br>
-  Try it at <a href="https://clarv.is">clarv.is</a>
+  For a ready-to-use, anything-to-3D-print experience, check out <a href="https://clarv.is">clarv.is</a>
 </p>
