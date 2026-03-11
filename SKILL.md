@@ -27,6 +27,8 @@ metadata:
 
 Single skill for the full 3D pipeline: **create** models (AI), **search** (Thingiverse), **slice**, and **print**. Modular—only enabled capabilities appear below.
 
+**CRITICAL — Execute immediately, never stop after acknowledging.** When you tell the user you'll do something (search, convert, preview, slice), you MUST execute the command in the SAME turn. Do NOT end your turn after just acknowledging — the user should never have to ask "done?" to get you to act. Acknowledge AND call the tool in one response.
+
 **Setup order:** Printer first (when printing enabled) → then create/search models → slice → print.
 
 ---
