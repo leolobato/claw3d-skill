@@ -593,13 +593,15 @@ If the MediaPath has no UUID (unusual), use `date +%s` for a unique ID. **NEVER*
 2. **Run convert** — `claw3d convert --edit-3d <GLB_MediaPath> --prompt "..." --output edited_<ID>.glb`
    - Edit-3D can take 5–10+ minutes. If it backgrounds, call `process poll <session>` with `timeout: 120000`. You will be notified when it completes — do NOT poll in a rapid loop.
    - When you see `Wrote edited_<ID>.glb` → convert is done.
-3. **Run preview** — `claw3d preview --input edited_<ID>.glb --output preview_edited_<ID>.mp4`
+3. **Run preview** — `claw3d preview --input edited_<ID>.glb --output preview_edited_<ID>.mp4 [--build-volume WxDxH]`
+   - **NEVER use `--real-scale`** for edited models. AI-regenerated models use normalized units (~1 unit), not mm. The preview auto-scales the model to fill the build volume.
    - Same: wait for result or single poll with `timeout: 120000`.
-4. **Send both files** — You MUST call the `message` tool. **NEVER output MEDIA: as text.**
+4. **Send BOTH files — TWO message() calls required. You are NOT done after sending the preview.**
    ```
    message(action="send", text="Here's the updated preview!", media="preview_edited_<ID>.mp4")
    message(action="send", text="And the edited model:", media="edited_<ID>.glb")
    ```
+   **CRITICAL: Do NOT end your turn after the first message(). You MUST send the .glb in a second message() call. The user needs the 3D model file, not just the video. Your turn is only complete after BOTH files are sent.**
 
 **NEVER use --image for a GLB** when modifying. --image is for 2D sketches/photos.
 
@@ -614,11 +616,12 @@ If the MediaPath has no UUID (unusual), use `date +%s` for a unique ID. **NEVER*
 4. **Run preview** — `claw3d preview --input model_<ID>.glb --output preview_<ID>.mp4 [--build-volume WxDxH]`
    - Same as above: wait for the result or poll once with `timeout: 120000`.
    - When you see `Wrote preview_<ID>.mp4` → preview is done. Proceed immediately.
-5. **Send files** — You MUST call the `message` tool to send files. **NEVER output MEDIA: as text — it will NOT deliver the file.**
+5. **Send BOTH files — TWO message() calls required. You are NOT done after sending the preview.**
    ```
    message(action="send", text="Here's your 3D model preview!", media="preview_<ID>.mp4")
    message(action="send", text="And the 3D model file:", media="model_<ID>.glb")
    ```
+   **CRITICAL: Do NOT end your turn after the first message(). You MUST send the .glb in a second message() call. The user needs the 3D model file, not just the video. Your turn is only complete after BOTH files are sent.**
 6. **ALWAYS ask about printing** — After sending the preview and model, ask:
    > Want me to slice this for 3D printing? If so, I need:
    >
@@ -1033,6 +1036,8 @@ The exec call waits up to 2 minutes for the command to finish. Most commands com
 **YOU MUST NOT return control to the user until you see `Wrote <path>` or an error.**
 
 **After slice succeeds, send BOTH the G-code and the G-code preview video.** Slice generates `model_<ID>_gcode_preview.mp4` by default (body red, supports yellow). Use the `message` tool so both files attach in Telegram.
+
+**Include print estimates in your message.** The slice output includes an `[estimates]` line with print time, filament usage, and layer count. Always include these stats when sending the G-code, e.g.: "Here's your G-code! Estimated print time: 2h 30m | Filament: 12.5m (37g) | Layers: 245"
 
 **When the user asks for "the video" after a slice:** They mean the G-code preview (`model_<ID>_gcode_preview.mp4`). **Do NOT run `claw3d preview`** — that renders the 3D model. Send the existing gcode preview file.
 

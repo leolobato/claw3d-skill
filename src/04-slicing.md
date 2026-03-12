@@ -134,6 +134,8 @@ The exec call waits up to 2 minutes for the command to finish. Most commands com
 
 **After slice succeeds, send BOTH the G-code and the G-code preview video.** Slice generates `model_<ID>_gcode_preview.mp4` by default (body red, supports yellow). Use the `message` tool so both files attach in Telegram.
 
+**Include print estimates in your message.** The slice output includes an `[estimates]` line with print time, filament usage, and layer count. Always include these stats when sending the G-code, e.g.: "Here's your G-code! Estimated print time: 2h 30m | Filament: 12.5m (37g) | Layers: 245"
+
 **When the user asks for "the video" after a slice:** They mean the G-code preview (`model_<ID>_gcode_preview.mp4`). **Do NOT run `claw3d preview`** — that renders the 3D model. Send the existing gcode preview file.
 
 **Build volume for previews:** When a default printer is configured (i.e. the printer was added with `--profile-from-3mf`), `claw3d preview` and `claw3d slice` automatically use that printer's build volume — you do NOT need to pass `--build-volume` explicitly. If needed, you can always override with `--build-volume WxDxH` (e.g. `--build-volume 350x350x350`). The build volume renders the grey build plate, 10mm grid, and volume wireframe in the preview video. To verify the current default printer's build volume, run `claw3d printer list`.
