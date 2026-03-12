@@ -8,6 +8,19 @@ Single skill for the full 3D workflow: create models (AI), search (Thingiverse),
 
 ---
 
+<table>
+<tr>
+<td align="center"><strong>Sketch / Image → 3D</strong></td>
+<td align="center"><strong>Modify 3D Models</strong></td>
+<td align="center"><strong>Multiply, Slice & Print</strong></td>
+</tr>
+<tr>
+<td><img src="assets/demos/sketch_to_3d.gif" alt="Sketch to 3D" width="280"></td>
+<td><img src="assets/demos/modify_3d.gif" alt="Modify 3D" width="280"></td>
+<td><img src="assets/demos/multiply_slice_print.gif" alt="Multiply, Slice & Print" width="280"></td>
+</tr>
+</table>
+
 ## Structure
 
 ```
