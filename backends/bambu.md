@@ -14,11 +14,22 @@ Bambu Lab printer support via local MQTT (LAN) or cloud API. Supports P1P, P1S, 
 
 Requires the printer's LAN IP and access code (found in printer settings under Network → LAN Mode).
 
+Set credentials in your `.env` file (never pass on the command line — CLI args are visible in process listings and shell history):
+
+```bash
+# In .env:
+BAMBU_ACCESS_CODE=your_access_code
+BAMBU_SERIAL=your_serial_number
+```
+
+Then add the printer:
+
 ```bash
 claw3d printer add --name "<name>" --host <ip> --port 8883 --backend bambu \
-  --access-code <ACCESS_CODE> --serial <SERIAL_NUMBER> \
   --profile-from-3mf <path_to_3mf>
 ```
+
+The CLI reads `BAMBU_ACCESS_CODE` and `BAMBU_SERIAL` from the environment automatically.
 
 **Finding your access code:**
 - On the printer: Settings → Network → LAN Mode → Access Code
@@ -32,13 +43,22 @@ claw3d printer add --name "<name>" --host <ip> --port 8883 --backend bambu \
 
 Uses Bambu Lab cloud account. Works without developer mode but adds latency.
 
+Set credentials in your `.env` file:
+
+```bash
+# In .env:
+BAMBU_EMAIL=your_email@example.com
+BAMBU_PASSWORD=your_password
+```
+
+Then add the printer:
+
 ```bash
 claw3d printer add --name "<name>" --backend bambu-cloud \
-  --bambu-email <email> --bambu-password <password> \
   --profile-from-3mf <path_to_3mf>
 ```
 
-The CLI discovers printers on your account automatically.
+The CLI reads `BAMBU_EMAIL` and `BAMBU_PASSWORD` from the environment and discovers printers on your account automatically. **Never pass credentials as CLI flags** — they appear in process listings (`ps aux`) and shell history.
 
 ## Firmware Auth Note
 
@@ -51,6 +71,8 @@ Bambu Lab's January 2025 firmware update (01.08.03.00+) introduced command verif
 
 **To enable Developer Mode:** Printer → Settings → General → Developer Mode → Enable.
 This gives full local LAN control but disables cloud features (remote monitoring via app, cloud printing).
+
+**SECURITY — TLS certificates:** LAN MQTT uses TLS with the printer's self-signed certificate. Certificate verification is typically disabled for local connections by `bambulabs_api`. This is acceptable on a trusted LAN but means the connection is vulnerable to MITM attacks on untrusted networks. **Never expose port 8883 to the internet.** Keep printer communication strictly on your local network.
 
 ## Slicing Differences
 

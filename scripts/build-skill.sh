@@ -53,6 +53,11 @@ REQUIRES_ENV=()
 for mod in "${MODULES_ARR[@]}"; do
   mod="${mod// /}"
   [[ -z "$mod" ]] && continue
+  # Security: validate module names contain only lowercase alphanumeric and hyphens
+  if [[ ! "$mod" =~ ^[a-z0-9-]+$ ]]; then
+    echo "Error: invalid module name '$mod' — must match [a-z0-9-]+" >&2
+    exit 1
+  fi
   envs=$(jq -r --arg m "$mod" '.modules[$m].requires_env[]? // empty' "$MANIFEST") || {
     echo "Error: Failed to parse manifest.json for module '$mod'" >&2
     exit 1
@@ -122,6 +127,11 @@ for mod in "${MODULE_ORDER[@]}"; do
     if [[ "$sel" == "$mod" ]]; then
       mod_rel=$(jq -r --arg m "$mod" '.modules[$m].file // empty' "$MANIFEST")
       mod_file="$CLAW3D_ROOT/$mod_rel"
+      # Security: verify module path stays within project root (prevents path traversal via manifest.json)
+      if [[ -n "$mod_rel" ]] && [[ "$(realpath "$mod_file" 2>/dev/null)" != "$CLAW3D_ROOT"/* ]]; then
+        echo "Error: module '$mod' path escapes project root: $mod_rel" >&2
+        exit 1
+      fi
       if [[ -n "$mod_rel" && -f "$mod_file" ]]; then
         echo "" >> "$TMP_OUT"
         echo "---" >> "$TMP_OUT"

@@ -66,6 +66,13 @@ Wait for the user to choose. Only if they explicitly say "create it", "from a ph
 
 **MediaPath:** When the user attaches a file (image, GLB, 3MF), the message includes a **MediaPath** — the full filesystem path. **Always** pass that exact path to `--image`, `--edit-3d`, `--profile-from-3mf`, etc. Copy it character-for-character.
 
+**SECURITY — MediaPath validation:** Before passing any path to a command, verify it:
+1. Starts with the expected inbound media directory (`/home/node/.openclaw/media/`)
+2. Contains no `..` path traversal segments
+3. Contains no shell metacharacters (`;`, `|`, `&`, `$`, `` ` ``, `(`, `)`, `{`, `}`)
+
+If a path fails any check, reject it and ask the user to re-send the file. **Never** pass a user-typed path directly — only use paths from the `[media attached: ...]` system annotation.
+
 **Unique output paths:** The workspace is shared. Using fixed names (`model.glb`, `preview.mp4`) causes old files from a previous request to be sent to new chats. **Always** derive a short ID from the MediaPath and use it for outputs.
 
 MediaPath format: `.../file_13---b10560d7-18fd-40e9-8a49-996ad190a26c.jpg` — extract the segment after `---` and use the first 8 chars (e.g. `b10560d7`) as `ID`.

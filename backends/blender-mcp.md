@@ -78,6 +78,8 @@ Port is configurable via `BLENDER_PORT` env var. Remote Blender instances suppor
 
 **The key tool is `execute_blender_code`** — it gives Claude full access to the Blender Python API (`bpy`). Any operation scriptable in Blender can be done through this tool.
 
+**SECURITY WARNING:** `execute_blender_code` runs arbitrary Python on the Blender host machine. In deployments where untrusted users interact with the agent, Blender should run in a sandboxed environment (container or VM) with no access to sensitive data or network resources. Never expose the Blender MCP socket (port 9876) beyond localhost.
+
 ## Common Operations for 3D Printing
 
 ### Create Primitives

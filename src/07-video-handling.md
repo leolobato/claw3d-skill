@@ -19,6 +19,8 @@ ls -t /home/node/.openclaw/media/inbound/ 2>/dev/null | head -5
 ```
 Pick the most recent video file (`.mp4`, `.mov`, `.webm`). Use that as the path.
 
+**SECURITY — Multi-tenant note:** In shared/multi-user deployments, this `ls` approach could expose files from other sessions. Verify the file's modification timestamp is within the last few minutes (matching the current message). In production, prefer session-scoped inbound directories over a shared `/inbound/` folder.
+
 **Case C — No file path and no Description** (video silently dropped — too large):
 > Your video was too large — OpenClaw's default limit is 5MB. I can increase it to 50MB right now. Want me to?
 

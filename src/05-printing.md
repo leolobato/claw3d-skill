@@ -22,6 +22,7 @@ This captures the full printer config, not just the model geometry.
 - `--name` (required): Display name, e.g. `"Creality K2 Pro Living Room"`
 - `--host` (required): Printer IP or hostname
 - `--port` (required): Moonraker usually 7125; Creality K2 SE often 4408
+- **SECURITY:** Moonraker's default config has no authentication. Anyone on the same network can send commands to the printer. Consider enabling Moonraker's API key authentication or restricting access to trusted IPs via firewall rules.
 - `--profile-from-3mf` (**required for slicing**): Create and link profile from 3MF in one step. Without this, slicing will fail until a profile is linked manually via `printer set-profile`.
 - `--id` (optional): CLI slug. If omitted, derived from `--name` (e.g. `"Creality K2 Pro"` → `creality_k2_pro`)
 

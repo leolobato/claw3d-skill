@@ -18,6 +18,8 @@ Alternative AI provider for 3D model generation. Uses the Meshy REST API instead
 **Base URL:** `https://api.meshy.ai/openapi/v1`
 **Auth:** `Authorization: Bearer ${MESHY_API_KEY}`
 
+**SECURITY:** Never hardcode your API key in shell commands or scripts. The examples below use the `${MESHY_API_KEY}` environment variable — set it in your `.env` file (which is gitignored), not substituted inline. Keys in shell history or committed code can be harvested by attackers.
+
 ### Step 1 — Create Task
 
 ```bash
