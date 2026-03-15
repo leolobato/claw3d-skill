@@ -7,7 +7,7 @@ metadata:
       "emoji": "🖨️",
       "skillKey": "claw3d",
       "primaryEnv": "FAL_API_KEY",
-      "requires": { "anyBins": ["claw3d"], "env": ["FAL_API_KEY","THINGIVERSE_ACCESS_TOKEN"] },
+      "requires": {"anyBins":["claw3d"],"env":["FAL_API_KEY","THINGIVERSE_ACCESS_TOKEN"]},
       "homepage": "https://github.com/makermate/openclaw-3d",
       "install": [
         {
@@ -120,7 +120,7 @@ If the MediaPath has no UUID (unusual), use `date +%s` to get a unique ID.
 Get model (search OR create) → optionally edit → slice → print
 ```
 
-- **Search** — `claw3d search` → `claw3d fetch` → `claw3d dimensions` → present with preview
+- **Search** — `claw3d find` → `claw3d fetch` → `claw3d dimensions` → present with preview
 - **Create** — `claw3d convert --image` (requires image/sketch) → `claw3d preview` → present
 - **Edit** — `claw3d convert --edit-3d` (when user sends GLB and asks to modify)
 - **Slice** — `claw3d slice` (sends G-code + gcode preview video)
@@ -134,7 +134,7 @@ Get model (search OR create) → optionally edit → slice → print
 |---------|----------|
 | `claw3d convert` | Image/sketch → GLB, or edit existing GLB |
 | `claw3d preview` | 360° turntable of 3D model |
-| `claw3d search` | Search Thingiverse |
+| `claw3d find` | Search Thingiverse |
 | `claw3d fetch` | Download model from Thingiverse |
 | `claw3d dimensions` | Bounding box (for slicing) |
 | `claw3d pack` | Arrange multi-part on build plate |
@@ -144,11 +144,11 @@ Get model (search OR create) → optionally edit → slice → print
 | `claw3d profile` | Create/list slicing profiles |
 | `claw3d configure` | Select AI provider, see backends |
 
-Run all via `exec`. Use `claw3d`.
+Execute all commands through the OpenClaw `exec` tool, specifying `claw3d` as the binary.
 
 ---
 
-<!-- MODULE: intent -->
+<!-- MODULE: intent-routing -->
 
 ## CRITICAL: Never Expose Internal Reasoning to the User
 
@@ -205,11 +205,79 @@ The key question is: **Would an existing Thingiverse model likely satisfy this n
 2. Identify what physical object they want (e.g. "wine holder", "phone stand", "bracket")
 3. Run the Primary Gate on that object name
 4. **If SEARCH** → go directly to `03-directory` module with that object as the search query. Do NOT extract a frame or run analyze
-5. **If CREATE** → continue to the "When User Sends a VIDEO (CREATE path)" section below
+5. **If CREATE** → continue to the `07-video-handling` module
 
 **⚠️ CRITICAL: A video showing someone demonstrating a common object does NOT make it a CREATE request.** The video is just their way of communicating what they want — it doesn't mean they need AI generation. A person holding up a wine bottle and showing how they'd like a wine stand still maps to SEARCH. Only explicit artistic/stylistic/replication intent maps to CREATE.
 
 ---
+
+## Full Example Flows
+
+**Generic functional object — search first (even if user says "create"):**
+```
+User: [sends video] "I need you to create a wine stand"
+→ Primary Gate: wine stand = common, functional → SEARCH path
+→ Go to 03-directory module: search → thumbnails → pick → confirm → download → preview
+```
+
+**Video demonstrating a common object — STILL search first:**
+```
+User: [sends video showing how they'd hold a wine bottle, describing an L-shaped holder]
+→ Primary Gate: wine holder = common, functional → SEARCH path (video demo ≠ custom design)
+→ Go to 03-directory: search "L-shaped wine bottle holder" → thumbnails → pick
+```
+
+**Same object + artistic constraint — create:**
+```
+User: [sends video + photo of sculpture] "I need a wine stand in the style of this sculpture"
+→ Primary Gate: style constraint present → CREATE path
+→ claw3d extract-frame → analyze (photo as reference) → convert with prompt + image
+```
+
+**Sketch → 3D model (CREATE path):**
+```
+User: [sends pencil sketch of a bracket]
+→ Primary Gate: sketch present → CREATE path
+→ claw3d analyze --input sketch.jpg --description "make this"
+  (native: sketch → create_new, needs_clarification: false, proceed directly)
+→ claw3d convert --image sketch.jpg --prompt "an L-shaped bracket with two mounting holes" --output model_abc.glb
+```
+
+**Generic object, user says "I want this" with a photo:**
+```
+User: [sends photo of a mug] "I want this"
+→ Primary Gate: mug = common object → SEARCH path
+→ Go to 03-directory: search "mug" → thumbnails → confirm → download → preview
+```
+
+**Custom functional object (specific, unlikely to exist):**
+```
+User: [sends photo of a weird desk edge] "make a phone holder that clips onto this exact edge"
+→ Primary Gate: too specific/personal to exist → CREATE path
+→ analyze → needs_clarification → ask for sketch on the photo
+```
+
+**Video — user asking to find (any wording):**
+```
+User: [sends video, description: "person asking to find/create a wine stand, demonstrates with bottle"]
+→ Primary Gate: wine stand = common functional object → SEARCH path
+→ Go to 03-directory module
+```
+
+**Search exhausted → fallback to CREATE:**
+```
+→ 3 searches, 15 thumbnails reviewed, none match
+→ "Couldn't find a good match. Want me to generate a custom one with AI?"
+User: "yes"
+→ If user has a video/photo: use it as reference for CREATE path
+→ Extract frame (if video) → analyze → clarification if needed → convert
+```
+
+<!-- /MODULE: intent-routing -->
+
+---
+
+<!-- MODULE: video-handling -->
 
 ## When User Sends a VIDEO — Get the File
 
@@ -235,19 +303,12 @@ Pick the most recent video file (`.mp4`, `.mov`, `.webm`). Use that as the path.
 
 If confirmed:
 ```bash
-python3 -c "
-import json, pathlib
-p = pathlib.Path('/home/node/.openclaw/openclaw.json')
-cfg = json.loads(p.read_text())
-cfg.setdefault('channels', {}).setdefault('telegram', {})['mediaMaxMb'] = 50
-p.write_text(json.dumps(cfg, indent=2))
-print('Done')
-"
+claw3d configure media-limit --channel telegram --max-mb 50
 ```
 Reply: "Done! The limit is now 50MB — please resend your video."
 > The config watcher restarts the Telegram channel automatically.
 
-**Step 2 — Run the Primary Gate** using the Description/user message → SEARCH or CREATE. See above.
+**Step 2 — Run the Primary Gate** using the Description/user message → SEARCH or CREATE. See `06-intent-routing`.
 
 **If SEARCH →** go to `03-directory` module. Note the video path — if search fails and you fall back to CREATE, you'll need it for frame extraction.
 
@@ -261,9 +322,58 @@ The bot rejects oversized files before the agent sees them. If the user reports 
 
 > I can increase your video limit to 50MB right now. Want me to do that?
 
-If confirmed, run the patch above.
+If confirmed, run the media-limit command above.
 
 ---
+
+### When User Sends a VIDEO (CREATE path)
+
+**You should only be here if the Primary Gate resolved to CREATE.**
+
+**Step 1 — Extract the best frame**
+
+Two paths depending on how the video arrived:
+
+**Case A — Video attached as media (you can see the video in this conversation):**
+You are a multimodal agent. Analyze the video directly to identify the best frame:
+- Subject fully in frame, clear and well-lit
+- Best reveals the 3D shape (front 3/4 angle preferred)
+- Not blurry, not mid-motion, not transitioning
+
+Pick the exact timestamp (HH:MM:SS), then extract:
+```bash
+claw3d extract-frame --input <video_path> --timestamp <HH:MM:SS> --output frame_<ID>.jpg
+```
+
+**Case B — Only text Description, no media in conversation (OpenClaw pre-processed the video):**
+You cannot see the video — you only have the text Description. Do NOT guess a timestamp from text. Use Gemini API for smart frame selection:
+```bash
+claw3d extract-frame --input <video_path> --output frame_<ID>.jpg
+```
+(no `--timestamp` → Gemini picks the best frame automatically)
+
+If this fails because no Gemini API key is configured, stop and tell the user:
+> "I need a Gemini API key to pick the best frame from your video (the video isn't directly visible to me in this conversation). Please run:
+> `claw3d configure analysis --gemini-api-key <YOUR_KEY>`
+> You can get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey)."
+
+**Step 2 — Analyze extracted frame:**
+```bash
+claw3d analyze --input frame_<ID>.jpg --description "<user's message or Gemini description>" --pretty
+```
+Then follow the IMAGE flow in `08-analysis` (including `needs_clarification` checks).
+
+**CRITICAL — Do NOT go silent after frame extraction.** If `needs_clarification: false`, tell the user you're generating the model BEFORE running `claw3d convert`. The full sequence must be:
+1. "Great, let me take a look at what you need — give me a moment!" (from earlier)
+2. Extract frame + analyze (Steps 1-2)
+3. **"Creating your 3D model now — I'll send it when it's ready!"** ← say this BEFORE convert
+4. Run `claw3d convert` → `claw3d preview` → send both files
+
+<!-- /MODULE: video-handling -->
+
+---
+
+<!-- MODULE: analysis -->
 
 ## Analysis Modes
 
@@ -413,115 +523,6 @@ If `needs_clarification: true`:
 
 ---
 
-### When User Sends a VIDEO (CREATE path)
-
-**You should only be here if the Primary Gate resolved to CREATE.**
-
-**Step 1 — Extract the best frame**
-
-Two paths depending on how the video arrived:
-
-**Case A — Video attached as media (you can see the video in this conversation):**
-You are a multimodal agent. Analyze the video directly to identify the best frame:
-- Subject fully in frame, clear and well-lit
-- Best reveals the 3D shape (front 3/4 angle preferred)
-- Not blurry, not mid-motion, not transitioning
-
-Pick the exact timestamp (HH:MM:SS), then extract:
-```bash
-claw3d extract-frame --input <video_path> --timestamp <HH:MM:SS> --output frame_<ID>.jpg
-```
-
-**Case B — Only text Description, no media in conversation (OpenClaw pre-processed the video):**
-You cannot see the video — you only have the text Description. Do NOT guess a timestamp from text. Use Gemini API for smart frame selection:
-```bash
-claw3d extract-frame --input <video_path> --output frame_<ID>.jpg
-```
-(no `--timestamp` → Gemini picks the best frame automatically)
-
-If this fails because no Gemini API key is configured, stop and tell the user:
-> "I need a Gemini API key to pick the best frame from your video (the video isn't directly visible to me in this conversation). Please run:
-> `claw3d configure analysis --gemini-api-key <YOUR_KEY>`
-> You can get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey)."
-
-**Step 2 — Analyze extracted frame:**
-```bash
-claw3d analyze --input frame_<ID>.jpg --description "<user's message or Gemini description>" --pretty
-```
-Then follow the IMAGE flow above (including `needs_clarification` checks).
-
-**CRITICAL — Do NOT go silent after frame extraction.** If `needs_clarification: false`, tell the user you're generating the model BEFORE running `claw3d convert`. The full sequence must be:
-1. "Great, let me take a look at what you need — give me a moment!" (from earlier)
-2. Extract frame + analyze (Steps 1-2)
-3. **"Creating your 3D model now — I'll send it when it's ready!"** ← say this BEFORE convert
-4. Run `claw3d convert` → `claw3d preview` → send both files
-
----
-
-## Full Example Flows
-
-**Generic functional object — search first (even if user says "create"):**
-```
-User: [sends video] "I need you to create a wine stand"
-→ Primary Gate: wine stand = common, functional → SEARCH path
-→ Go to 03-directory module: search → thumbnails → pick → confirm → download → preview
-```
-
-**Video demonstrating a common object — STILL search first:**
-```
-User: [sends video showing how they'd hold a wine bottle, describing an L-shaped holder]
-→ Primary Gate: wine holder = common, functional → SEARCH path (video demo ≠ custom design)
-→ Go to 03-directory: search "L-shaped wine bottle holder" → thumbnails → pick
-```
-
-**Same object + artistic constraint — create:**
-```
-User: [sends video + photo of sculpture] "I need a wine stand in the style of this sculpture"
-→ Primary Gate: style constraint present → CREATE path
-→ claw3d extract-frame → analyze (photo as reference) → convert with prompt + image
-```
-
-**Sketch → 3D model (CREATE path):**
-```
-User: [sends pencil sketch of a bracket]
-→ Primary Gate: sketch present → CREATE path
-→ claw3d analyze --input sketch.jpg --description "make this"
-  (native: sketch → create_new, needs_clarification: false, proceed directly)
-→ claw3d convert --image sketch.jpg --prompt "an L-shaped bracket with two mounting holes" --output model_abc.glb
-```
-
-**Generic object, user says "I want this" with a photo:**
-```
-User: [sends photo of a mug] "I want this"
-→ Primary Gate: mug = common object → SEARCH path
-→ Go to 03-directory: search "mug" → thumbnails → confirm → download → preview
-```
-
-**Custom functional object (specific, unlikely to exist):**
-```
-User: [sends photo of a weird desk edge] "make a phone holder that clips onto this exact edge"
-→ Primary Gate: too specific/personal to exist → CREATE path
-→ analyze → needs_clarification → ask for sketch on the photo
-```
-
-**Video — user asking to find (any wording):**
-```
-User: [sends video, description: "person asking to find/create a wine stand, demonstrates with bottle"]
-→ Primary Gate: wine stand = common functional object → SEARCH path
-→ Go to 03-directory module
-```
-
-**Search exhausted → fallback to CREATE:**
-```
-→ 3 searches, 15 thumbnails reviewed, none match
-→ "Couldn't find a good match. Want me to generate a custom one with AI?"
-User: "yes"
-→ If user has a video/photo: use it as reference for CREATE path
-→ Extract frame (if video) → analyze → clarification if needed → convert
-```
-
----
-
 ## Commands Reference
 
 ```bash
@@ -540,7 +541,7 @@ claw3d configure analysis --gemini-api-key <KEY>         # set Gemini key
 claw3d configure analysis --clear                        # remove Gemini key
 ```
 
-<!-- /MODULE: intent -->
+<!-- /MODULE: analysis -->
 
 ---
 
@@ -591,7 +592,7 @@ If the MediaPath has no UUID (unusual), use `date +%s` for a unique ID. **NEVER*
 
 1. **Acknowledge** — "On it! Editing the 3D model. The Hunyuan step can take a few minutes when cold."
 2. **Run convert** — `claw3d convert --edit-3d <GLB_MediaPath> --prompt "..." --output edited_<ID>.glb`
-   - Edit-3D can take 5–10+ minutes. If it backgrounds, call `process poll <session>` with `timeout: 120000`. You will be notified when it completes — do NOT poll in a rapid loop.
+   - Edit-3D can take 5–10+ minutes. If it backgrounds, call `process poll <session>` (OpenClaw platform command for polling backgrounded processes) with `timeout: 120000`. You will be notified when it completes — do NOT poll in a rapid loop.
    - When you see `Wrote edited_<ID>.glb` → convert is done.
 3. **Run preview** — `claw3d preview --input edited_<ID>.glb --output preview_edited_<ID>.mp4 [--build-volume WxDxH]`
    - **NEVER use `--real-scale`** for edited models. AI-regenerated models use normalized units (~1 unit), not mm. The preview auto-scales the model to fill the build volume.
@@ -755,7 +756,7 @@ The chosen model is already downloaded. Use its thing ID to inspect variant/part
 claw3d fetch --list-grouped <thing_id>
 ```
 
-This deterministically selects the best extension group (STL > OBJ > GLB > 3MF). Parse the output:
+This deterministically selects the best extension group (STL > OBJ > GLB > 3MF — STL preferred because it's natively supported by slicers with no conversion; 3MF deprioritized because it's often a project file, not a raw mesh). Parse the output:
 
 - `Best extension: .stl (N file(s))` — what will be downloaded
 - `Sub-variants (size/version choices…)` — only shown if multiple size/version options exist
@@ -877,9 +878,9 @@ If yes, follow the AI generation flow from `02-ai-forger.md`.
 | `claw3d fetch --list-only <id>` | Raw file list (complete sets vs parts) |
 | `claw3d fetch <id> -o model.glb` | Download + convert to GLB |
 | `claw3d fetch <id> --choose "large" -o model.glb` | Download only files matching substring |
-| `claw3d pack -i dir/ --build WxHxD -o model.glb` | Arrange multi-part on build plate (2mm gap). Exit 1 if part too large |
-| `claw3d pack -i model.stl --copies 4 --build WxHxD -o model_x4.stl` | Duplicate single model 4 times on plate |
-| `claw3d pack -i model.stl --copies 4 --rotation-x 90 --build WxHxD -o model_x4.stl` | Duplicate with baked rotation |
+| `claw3d pack -i dir/ --build WxDxH -o model.glb` | Arrange multi-part on build plate (2mm gap). Exit 1 if part too large |
+| `claw3d pack -i model.stl --copies 4 --build WxDxH -o model_x4.stl` | Duplicate single model 4 times on plate |
+| `claw3d pack -i model.stl --copies 4 --rotation-x 90 --build WxDxH -o model_x4.stl` | Duplicate with baked rotation |
 | `claw3d fit-check -i model.stl --apply-rotation` | One-off fit check: exits 0 = fits, exits 1 = doesn't fit |
 | `claw3d dimensions -i model.glb` | Bounding box + save `.dimensions.json` sidecar for future slicing |
 | `claw3d preview -i model.glb -o preview.mp4` | 360° turntable video |
@@ -1087,7 +1088,7 @@ claw3d gcode-preview --input model.gcode --output gcode_preview.mp4 --build-volu
 | `--strength` | 1–5 (10%→1 … 100%→5). Default 3 |
 | `--quality` | 1–5 (10%→1 … 100%→5). Detail / print quality level |
 | `--max-dimension` | Scale longest axis to N mm (AI models) |
-| `--max-from-model` | Use max from dimensions.json (directory models) |
+| `--max-from-model` | **Deprecated** — source-based auto-routing now handles this. Do not use for directory/Thingiverse models |
 | `--no-mesh-clean` | Skip all mesh repair during GLB→STL conversion. **Required for directory/Thingiverse GLBs** — mesh fixes are for AI models only and can delete real model geometry |
 | `--rotation-x` | ⚠️ **Prefer `claw3d rotate` instead** — bakes rotation into file. Only use in slice/preview for one-off tests |
 | `--rotation-y` | Same as above |
@@ -1148,7 +1149,12 @@ Then: `claw3d profile create --from-3mf <path> --name "<printer_id>_profile"` �
 
 **Fresh start:** Run `claw3d profile clear`, then re-add printer with `--profile-from-3mf`.
 
-**Printer backends:** Run `claw3d configure backends` to see options (Moonraker, PrusaLink, etc.). Community can add backends in `claw3d/backends/`.
+**Printer backends:** Run `claw3d configure backends` to see options. Supported:
+- **Moonraker** (Klipper) — default, port 7125
+- **PrusaLink** — Prusa printers
+- **Bambu Lab** — P1P, P1S, X1C, A1, A1 Mini via local MQTT or cloud API. See `backends/bambu.md` for setup. Requires access code + serial (LAN) or account credentials (cloud).
+
+Community can add more backends in `claw3d/backends/`.
 
 ## Before Printing
 
@@ -1205,3 +1211,241 @@ Each printer can have a linked default profile. Run `claw3d printer list` to see
 The build volume (`350×350×350mm`) is snapshotted from the profile when it is linked. **When slicing AI-generated or user-provided models** (no dimensions file), read the printer's build volume from `claw3d printer list` and use the smallest dimension as the default `--max-dimension` suggestion, rather than asking the user to guess.
 
 <!-- /MODULE: printing -->
+
+---
+
+<!-- MODULE: mesh-repair -->
+
+# Module: Mesh Repair & Format Conversion
+
+**You CAN repair broken 3D scans, fix mesh errors, simplify high-poly models, and convert between 3D formats.** Use `claw3d mesh-repair` for common repairs, or the tools below for specific operations.
+
+## When to Use
+
+- User sends a 3D scan (STL/OBJ/PLY) that has holes, non-manifold edges, or flipped normals
+- Slicer rejects a model with mesh errors
+- Model has too many polygons for efficient slicing (500k+ faces)
+- User needs format conversion (OBJ → STL, GLB → STL, etc.)
+- User says "fix this mesh", "repair this scan", "make it printable", "reduce polygons"
+
+## Prerequisites
+
+Install repair tools (one or more):
+
+```bash
+# admesh — fast CLI for STL repair (STL only)
+brew install admesh           # macOS
+apt-get install admesh        # Linux
+
+# trimesh — Python library for repair + conversion (all formats)
+pip install "trimesh[easy]" manifold3d fast-simplification
+
+# pymeshlab — Python MeshLab filters (advanced: Poisson reconstruction, smoothing)
+pip install pymeshlab
+```
+
+---
+
+## Quick Repair — admesh CLI
+
+For STL files with common scan issues. Runs all repairs by default (fix normals, fill holes, remove orphans, stitch gaps):
+
+```bash
+# Full auto-repair
+admesh scan.stl --write-binary-stl=repaired.stl
+
+# Aggressive repair for messy scans (wider tolerance, more iterations)
+admesh scan.stl -n --tolerance=0.5 --iterations=5 -u -f -d -v --write-binary-stl=repaired.stl
+```
+
+| Flag | What it does |
+|---|---|
+| `-n` | Find and stitch nearly-adjacent facets (close gaps) |
+| `-u` | Remove facets with 0 neighbors (orphans) |
+| `-f` | Fill holes |
+| `-d` | Fix normal directions (CW/CCW winding) |
+| `-v` | Recompute normal vectors |
+| `--tolerance=N` | Distance threshold for gap stitching (mm) |
+| `--iterations=N` | Number of stitching passes |
+
+**Limitation:** admesh only handles STL files. For OBJ/GLB/PLY, use trimesh.
+
+---
+
+## Format Conversion — trimesh
+
+Convert between any supported formats. No repair — just format change:
+
+```bash
+claw3d mesh-convert --input model.obj --output model.stl
+claw3d mesh-convert --input model.glb --output model.stl
+claw3d mesh-convert --input model.ply --output model.glb
+```
+
+Or directly with Python:
+
+```python
+import trimesh
+mesh = trimesh.load('model.obj', force='mesh')
+mesh.export('model.stl')
+```
+
+**Supported formats:** STL, OBJ, GLB/GLTF, PLY, OFF, 3MF (with `trimesh[easy]`)
+
+---
+
+## Full Repair Pipeline — trimesh
+
+For scans that need normals fixed, holes filled, and polygon count reduced:
+
+```bash
+claw3d mesh-repair --input scan.stl --output repaired.stl [--simplify 100000]
+```
+
+What this does internally:
+
+```python
+import trimesh
+import trimesh.repair as repair
+
+mesh = trimesh.load('scan.stl', force='mesh')
+
+# Fix normals and fill holes
+repair.fix_normals(mesh)
+repair.fill_holes(mesh)
+
+# Simplify if too dense (optional)
+if len(mesh.faces) > 500_000:
+    mesh = mesh.simplify_quadric_decimation(face_count=200_000)
+
+mesh.export('repaired.stl')
+```
+
+### Checking Mesh Health
+
+```python
+mesh.is_watertight   # every edge shared by exactly 2 faces
+mesh.is_volume       # watertight + consistent winding + outward normals
+len(mesh.faces)      # polygon count
+```
+
+If `is_watertight` is False after `fill_holes`, the mesh may need pymeshlab's more aggressive repair (see below).
+
+---
+
+## Advanced Repair — pymeshlab
+
+For severely broken scans, point clouds, or meshes needing Poisson reconstruction:
+
+```bash
+claw3d mesh-repair --input scan.stl --output repaired.stl --engine pymeshlab
+```
+
+### Common pymeshlab Repair Pipeline
+
+```python
+import pymeshlab
+
+ms = pymeshlab.MeshSet()
+ms.load_new_mesh('scan.stl')
+
+# Remove degenerate geometry
+ms.meshing_remove_duplicate_vertices()
+ms.meshing_remove_duplicate_faces()
+ms.meshing_remove_null_faces()
+
+# Fix non-manifold topology
+ms.meshing_repair_non_manifold_edges()
+ms.meshing_repair_non_manifold_vertices()
+
+# Merge close vertices (weld seams from scan artifacts)
+ms.meshing_merge_close_vertices(threshold=pymeshlab.PercentageValue(0.1))
+
+# Fill holes (maxholesize = max edges around hole perimeter)
+ms.meshing_close_holes(maxholesize=50)
+
+# Optional: smooth scan noise
+ms.apply_coord_laplacian_smoothing(stepsmoothnum=2, boundary=True)
+
+ms.save_current_mesh('repaired.stl')
+```
+
+### Poisson Surface Reconstruction (Point Cloud → Mesh)
+
+For raw point cloud scans or meshes with too many holes to patch:
+
+```python
+ms = pymeshlab.MeshSet()
+ms.load_new_mesh('pointcloud.ply')
+
+# Compute normals from point cloud
+ms.compute_normal_for_point_clouds(k=20, smoothiter=2)
+
+# Reconstruct surface
+ms.generate_surface_reconstruction_screened_poisson(depth=8, scale=1.1)
+
+ms.save_current_mesh('reconstructed.stl')
+```
+
+### Simplification (Reduce Polygon Count)
+
+```python
+ms.meshing_decimation_quadric_edge_collapse(
+    targetfacenum=50000,
+    qualitythr=0.3,
+    preserveboundary=True,
+    preservenormal=True,
+    preservetopology=True
+)
+```
+
+---
+
+## Boolean Operations — trimesh
+
+Combine or subtract meshes (requires `manifold3d`):
+
+```python
+import trimesh
+
+body = trimesh.load('body.stl')
+cutout = trimesh.load('cutout.stl')
+
+# Both meshes must be is_volume=True (watertight + valid winding)
+result = trimesh.boolean.difference([body, cutout], engine='manifold')
+result.export('body_with_hole.stl')
+```
+
+| Operation | Function |
+|---|---|
+| Union (merge) | `trimesh.boolean.union([a, b])` |
+| Difference (cut) | `trimesh.boolean.difference([a, b])` |
+| Intersection (overlap) | `trimesh.boolean.intersection([a, b])` |
+
+---
+
+## Workflow Decision Guide
+
+| Problem | Tool | Command |
+|---|---|---|
+| STL with holes/bad normals | admesh | `admesh scan.stl --write-binary-stl=fixed.stl` |
+| OBJ/GLB/PLY needs repair | trimesh | `claw3d mesh-repair --input scan.obj --output fixed.stl` |
+| Too many polygons (>500k) | trimesh | `claw3d mesh-repair --input dense.stl --output simple.stl --simplify 100000` |
+| Severely broken scan | pymeshlab | `claw3d mesh-repair --input broken.stl --output fixed.stl --engine pymeshlab` |
+| Point cloud → solid mesh | pymeshlab | Poisson reconstruction (see above) |
+| Format conversion only | trimesh | `claw3d mesh-convert --input model.obj --output model.stl` |
+| Boolean ops (cut/merge) | trimesh | `trimesh.boolean.difference([a, b])` |
+
+---
+
+## Error Handling
+
+| Error | Action |
+|---|---|
+| "not watertight" after repair | Try pymeshlab pipeline or Poisson reconstruction |
+| admesh "no facets" | File is empty or corrupt; try opening in trimesh instead |
+| trimesh import error | Install deps: `pip install "trimesh[easy]" manifold3d` |
+| pymeshlab filter not found | Run `pymeshlab.search('keyword')` to find correct filter name |
+| Boolean op fails | Both meshes must be `is_volume=True`; repair first |
+
+<!-- /MODULE: mesh-repair -->

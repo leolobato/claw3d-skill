@@ -95,7 +95,7 @@ If the MediaPath has no UUID (unusual), use `date +%s` to get a unique ID.
 Get model (search OR create) → optionally edit → slice → print
 ```
 
-- **Search** — `claw3d search` → `claw3d fetch` → `claw3d dimensions` → present with preview
+- **Search** — `claw3d find` → `claw3d fetch` → `claw3d dimensions` → present with preview
 - **Create** — `claw3d convert --image` (requires image/sketch) → `claw3d preview` → present
 - **Edit** — `claw3d convert --edit-3d` (when user sends GLB and asks to modify)
 - **Slice** — `claw3d slice` (sends G-code + gcode preview video)
@@ -109,7 +109,7 @@ Get model (search OR create) → optionally edit → slice → print
 |---------|----------|
 | `claw3d convert` | Image/sketch → GLB, or edit existing GLB |
 | `claw3d preview` | 360° turntable of 3D model |
-| `claw3d search` | Search Thingiverse |
+| `claw3d find` | Search Thingiverse |
 | `claw3d fetch` | Download model from Thingiverse |
 | `claw3d dimensions` | Bounding box (for slicing) |
 | `claw3d pack` | Arrange multi-part on build plate |
@@ -119,4 +119,4 @@ Get model (search OR create) → optionally edit → slice → print
 | `claw3d profile` | Create/list slicing profiles |
 | `claw3d configure` | Select AI provider, see backends |
 
-Run all via `exec`. Use `claw3d`.
+Execute all commands through the OpenClaw `exec` tool, specifying `claw3d` as the binary.

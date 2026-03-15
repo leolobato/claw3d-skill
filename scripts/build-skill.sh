@@ -9,6 +9,12 @@
 # Default: all modules if CLAW3D_MODULES not set and no --modules.
 set -euo pipefail
 
+# jq is required for manifest parsing — fail fast if missing
+if ! command -v jq &>/dev/null; then
+  echo "Error: jq is required but not installed. Install it with: brew install jq (macOS) or apt-get install jq (Linux)" >&2
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAW3D_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SRC_DIR="$CLAW3D_ROOT/src"
@@ -23,13 +29,15 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     *)
-      shift
+      echo "Error: Unknown option: $1" >&2
+      echo "Usage: $0 [--modules ai-forger,directory,slicing,printing]" >&2
+      exit 1
       ;;
   esac
 done
 
 # Module selection: env > arg > default all
-MODULES_STR="${CLAW3D_MODULES:-${MODULES_ARG:-ai-forger,directory,slicing,printing}}"
+MODULES_STR="${CLAW3D_MODULES:-${MODULES_ARG:-ai-forger,directory,slicing,printing,mesh-repair}}"
 IFS=',' read -ra MODULES_ARR <<< "$MODULES_STR"
 
 # Validate modules against manifest
@@ -45,23 +53,37 @@ REQUIRES_ENV=()
 for mod in "${MODULES_ARR[@]}"; do
   mod="${mod// /}"
   [[ -z "$mod" ]] && continue
-  # Extract requires_env from manifest (simple jq or grep)
-  if command -v jq &>/dev/null; then
-    envs=$(jq -r --arg m "$mod" '.modules[$m].requires_env[]? // empty' "$MANIFEST" 2>/dev/null || true)
-    for e in $envs; do
-      [[ -n "$e" ]] && REQUIRES_ENV+=("$e")
-    done
+  envs=$(jq -r --arg m "$mod" '.modules[$m].requires_env[]? // empty' "$MANIFEST") || {
+    echo "Error: Failed to parse manifest.json for module '$mod'" >&2
+    exit 1
+  }
+  for e in $envs; do
+    [[ -n "$e" ]] && REQUIRES_ENV+=("$e")
+  done
+done
+
+# Determine primaryEnv based on selected modules
+PRIMARY_ENV=""
+for mod in "${MODULES_ARR[@]}"; do
+  mod="${mod// /}"
+  if [[ "$mod" == "ai-forger" ]]; then
+    PRIMARY_ENV="FAL_API_KEY"
+    break
   fi
 done
+# Fallback: use the first required env var if ai-forger not selected
+if [[ -z "$PRIMARY_ENV" && ${#REQUIRES_ENV[@]} -gt 0 ]]; then
+  PRIMARY_ENV="${REQUIRES_ENV[0]}"
+fi
 
 # Deduplicate and build requires JSON
 # Format: { "anyBins": ["claw3d"], "env": ["FAL_API_KEY", ...] }
-REQUIRES_JSON='{ "anyBins": ["claw3d"]'
 if [[ ${#REQUIRES_ENV[@]} -gt 0 ]]; then
-  ENV_JSON=$(printf '%s\n' "${REQUIRES_ENV[@]}" | sort -u | sed 's/.*/"&"/' | paste -sd, -)
-  REQUIRES_JSON="$REQUIRES_JSON, \"env\": [$ENV_JSON]"
+  ENV_JSON=$(printf '%s\n' "${REQUIRES_ENV[@]}" | sort -u | jq -R . | jq -s -c '.')
+  REQUIRES_JSON=$(jq -c -n --argjson env "$ENV_JSON" '{ "anyBins": ["claw3d"], "env": $env }')
+else
+  REQUIRES_JSON='{ "anyBins": ["claw3d"] }'
 fi
-REQUIRES_JSON="$REQUIRES_JSON }"
 
 # Build frontmatter
 FRONTMATTER="$SRC_DIR/00-frontmatter.md"
@@ -74,29 +96,31 @@ fi
 TMP_OUT=$(mktemp)
 trap 'rm -f "$TMP_OUT"' EXIT
 
-# 1. Frontmatter with requires injected
-sed "s|{{REQUIRES_JSON}}|$REQUIRES_JSON|g" "$FRONTMATTER" > "$TMP_OUT"
+# 1. Frontmatter with requires and primaryEnv injected (awk avoids sed special-char issues)
+awk -v req="$REQUIRES_JSON" -v env="$PRIMARY_ENV" '{ gsub(/\{\{REQUIRES_JSON\}\}/, req); gsub(/\{\{PRIMARY_ENV\}\}/, env); print }' "$FRONTMATTER" > "$TMP_OUT"
 
 # 2. Core (always included)
 echo "" >> "$TMP_OUT"
 cat "$SRC_DIR/01-core.md" >> "$TMP_OUT"
 
-# 3. Intent analysis (always included)
-if [[ -f "$SRC_DIR/06-intent.md" ]]; then
-  echo "" >> "$TMP_OUT"
-  echo "---" >> "$TMP_OUT"
-  echo "" >> "$TMP_OUT"
-  cat "$SRC_DIR/06-intent.md" >> "$TMP_OUT"
-fi
+# 3. Intent, video handling, and analysis (always included)
+for intent_mod in 06-intent-routing.md 07-video-handling.md 08-analysis.md; do
+  if [[ -f "$SRC_DIR/$intent_mod" ]]; then
+    echo "" >> "$TMP_OUT"
+    echo "---" >> "$TMP_OUT"
+    echo "" >> "$TMP_OUT"
+    cat "$SRC_DIR/$intent_mod" >> "$TMP_OUT"
+  fi
+done
 
 # 4. Selected modules in order
-MODULE_ORDER=(ai-forger directory slicing printing)
+MODULE_ORDER=(ai-forger directory slicing printing mesh-repair)
 for mod in "${MODULE_ORDER[@]}"; do
   for sel in "${MODULES_ARR[@]}"; do
     sel="${sel// /}"
     [[ -z "$sel" ]] && continue
     if [[ "$sel" == "$mod" ]]; then
-      mod_rel=$(jq -r --arg m "$mod" '.modules[$m].file // empty' "$MANIFEST" 2>/dev/null)
+      mod_rel=$(jq -r --arg m "$mod" '.modules[$m].file // empty' "$MANIFEST")
       mod_file="$CLAW3D_ROOT/$mod_rel"
       if [[ -n "$mod_rel" && -f "$mod_file" ]]; then
         echo "" >> "$TMP_OUT"

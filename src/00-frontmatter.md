@@ -6,7 +6,7 @@ metadata:
     "openclaw": {
       "emoji": "🖨️",
       "skillKey": "claw3d",
-      "primaryEnv": "FAL_API_KEY",
+      "primaryEnv": "{{PRIMARY_ENV}}",
       "requires": {{REQUIRES_JSON}},
       "homepage": "https://github.com/makermate/openclaw-3d",
       "install": [

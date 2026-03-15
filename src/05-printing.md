@@ -43,7 +43,12 @@ Then: `claw3d profile create --from-3mf <path> --name "<printer_id>_profile"` �
 
 **Fresh start:** Run `claw3d profile clear`, then re-add printer with `--profile-from-3mf`.
 
-**Printer backends:** Run `claw3d configure backends` to see options (Moonraker, PrusaLink, etc.). Community can add backends in `claw3d/backends/`.
+**Printer backends:** Run `claw3d configure backends` to see options. Supported:
+- **Moonraker** (Klipper) — default, port 7125
+- **PrusaLink** — Prusa printers
+- **Bambu Lab** — P1P, P1S, X1C, A1, A1 Mini via local MQTT or cloud API. See `backends/bambu.md` for setup. Requires access code + serial (LAN) or account credentials (cloud).
+
+Community can add more backends in `claw3d/backends/`.
 
 ## Before Printing
 

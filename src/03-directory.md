@@ -84,7 +84,7 @@ The chosen model is already downloaded. Use its thing ID to inspect variant/part
 claw3d fetch --list-grouped <thing_id>
 ```
 
-This deterministically selects the best extension group (STL > OBJ > GLB > 3MF). Parse the output:
+This deterministically selects the best extension group (STL > OBJ > GLB > 3MF — STL preferred because it's natively supported by slicers with no conversion; 3MF deprioritized because it's often a project file, not a raw mesh). Parse the output:
 
 - `Best extension: .stl (N file(s))` — what will be downloaded
 - `Sub-variants (size/version choices…)` — only shown if multiple size/version options exist
@@ -206,9 +206,9 @@ If yes, follow the AI generation flow from `02-ai-forger.md`.
 | `claw3d fetch --list-only <id>` | Raw file list (complete sets vs parts) |
 | `claw3d fetch <id> -o model.glb` | Download + convert to GLB |
 | `claw3d fetch <id> --choose "large" -o model.glb` | Download only files matching substring |
-| `claw3d pack -i dir/ --build WxHxD -o model.glb` | Arrange multi-part on build plate (2mm gap). Exit 1 if part too large |
-| `claw3d pack -i model.stl --copies 4 --build WxHxD -o model_x4.stl` | Duplicate single model 4 times on plate |
-| `claw3d pack -i model.stl --copies 4 --rotation-x 90 --build WxHxD -o model_x4.stl` | Duplicate with baked rotation |
+| `claw3d pack -i dir/ --build WxDxH -o model.glb` | Arrange multi-part on build plate (2mm gap). Exit 1 if part too large |
+| `claw3d pack -i model.stl --copies 4 --build WxDxH -o model_x4.stl` | Duplicate single model 4 times on plate |
+| `claw3d pack -i model.stl --copies 4 --rotation-x 90 --build WxDxH -o model_x4.stl` | Duplicate with baked rotation |
 | `claw3d fit-check -i model.stl --apply-rotation` | One-off fit check: exits 0 = fits, exits 1 = doesn't fit |
 | `claw3d dimensions -i model.glb` | Bounding box + save `.dimensions.json` sidecar for future slicing |
 | `claw3d preview -i model.glb -o preview.mp4` | 360° turntable video |

@@ -10,14 +10,21 @@ A skill is a set of markdown files that get assembled into a single `SKILL.md` p
 
 ```
 src/
-  00-frontmatter.md   — System prompt header, identity, capabilities
-  01-core.md          — Core tool definitions (exec, message, etc.)
-  02-ai-forger.md     — AI model creation workflows (text/image → 3D)
-  03-directory.md     — Model search (Thingiverse)
-  04-slicing.md       — Slicing and preview workflows
-  05-printing.md      — Printer control (Moonraker)
+  00-frontmatter.md     — System prompt header, identity, capabilities
+  01-core.md            — Core tool definitions (exec, message, etc.)
+  02-ai-forger.md       — AI model creation workflows (text/image → 3D)
+  03-directory.md       — Model search (Thingiverse)
+  04-slicing.md         — Slicing and preview workflows
+  05-printing.md        — Printer control (Moonraker)
+  06-intent-routing.md  — Primary Gate routing logic (SEARCH vs CREATE)
+  07-video-handling.md  — Video file discovery and frame extraction
+  08-analysis.md        — Image/video analysis and clarification flows
+  09-mesh-repair.md     — Mesh repair, scan fixing, format conversion
+backends/               — Community: printer backends (bambu.md, blender-mcp.md)
+providers/              — Community: AI providers (FAL, Replicate, Meshy…)
+directories/            — Community: search providers (Thingiverse, Printables…)
 scripts/
-  build-skill.sh      — Assembles src/ modules into SKILL.md
+  build-skill.sh        — Assembles src/ modules into SKILL.md
 ```
 
 ## How to contribute
@@ -27,6 +34,10 @@ scripts/
 3. Run `./scripts/build-skill.sh` to rebuild `SKILL.md`
 4. Test by deploying the skill to a local OpenClaw instance
 5. Open a pull request with a clear description
+
+## Frontmatter format
+
+`00-frontmatter.md` uses a YAML/JSON hybrid format required by the OpenClaw skill parser. The `metadata` field contains raw JSON inside YAML `---` delimiters. This is intentional — OpenClaw does custom parsing and standard YAML parsers will not validate it. The build script injects `{{REQUIRES_JSON}}` and `{{PRIMARY_ENV}}` placeholders at build time. Do not attempt to convert this to pure YAML or pure JSON.
 
 ## Guidelines
 

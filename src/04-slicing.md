@@ -184,7 +184,7 @@ claw3d gcode-preview --input model.gcode --output gcode_preview.mp4 --build-volu
 | `--strength` | 1–5 (10%→1 … 100%→5). Default 3 |
 | `--quality` | 1–5 (10%→1 … 100%→5). Detail / print quality level |
 | `--max-dimension` | Scale longest axis to N mm (AI models) |
-| `--max-from-model` | Use max from dimensions.json (directory models) |
+| `--max-from-model` | **Deprecated** — source-based auto-routing now handles this. Do not use for directory/Thingiverse models |
 | `--no-mesh-clean` | Skip all mesh repair during GLB→STL conversion. **Required for directory/Thingiverse GLBs** — mesh fixes are for AI models only and can delete real model geometry |
 | `--rotation-x` | ⚠️ **Prefer `claw3d rotate` instead** — bakes rotation into file. Only use in slice/preview for one-off tests |
 | `--rotation-y` | Same as above |

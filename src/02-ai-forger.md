@@ -45,7 +45,7 @@ If the MediaPath has no UUID (unusual), use `date +%s` for a unique ID. **NEVER*
 
 1. **Acknowledge** — "On it! Editing the 3D model. The Hunyuan step can take a few minutes when cold."
 2. **Run convert** — `claw3d convert --edit-3d <GLB_MediaPath> --prompt "..." --output edited_<ID>.glb`
-   - Edit-3D can take 5–10+ minutes. If it backgrounds, call `process poll <session>` with `timeout: 120000`. You will be notified when it completes — do NOT poll in a rapid loop.
+   - Edit-3D can take 5–10+ minutes. If it backgrounds, call `process poll <session>` (OpenClaw platform command for polling backgrounded processes) with `timeout: 120000`. You will be notified when it completes — do NOT poll in a rapid loop.
    - When you see `Wrote edited_<ID>.glb` → convert is done.
 3. **Run preview** — `claw3d preview --input edited_<ID>.glb --output preview_edited_<ID>.mp4 [--build-volume WxDxH]`
    - **NEVER use `--real-scale`** for edited models. AI-regenerated models use normalized units (~1 unit), not mm. The preview auto-scales the model to fill the build volume.

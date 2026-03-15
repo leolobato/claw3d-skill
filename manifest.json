@@ -25,7 +25,14 @@
     "printing": {
       "file": "src/05-printing.md",
       "label": "Printer control",
-      "description": "Print to Moonraker, PrusaLink; manage printers",
+      "description": "Print to Moonraker, PrusaLink, or Bambu Lab; manage printers",
+      "requires_env": [],
+      "optional_env": ["BAMBU_ACCESS_CODE", "BAMBU_SERIAL"]
+    },
+    "mesh-repair": {
+      "file": "src/09-mesh-repair.md",
+      "label": "Mesh repair & conversion",
+      "description": "Fix scans, repair meshes, simplify polygons, convert formats (admesh, trimesh, pymeshlab)",
       "requires_env": []
     }
   },
