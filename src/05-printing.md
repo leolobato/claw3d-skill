@@ -47,9 +47,39 @@ Then: `claw3d profile create --from-3mf <path> --name "<printer_id>_profile"` �
 **Printer backends:** Run `claw3d configure backends` to see options. Supported:
 - **Moonraker** (Klipper) — default, port 7125
 - **PrusaLink** — Prusa printers
-- **Bambu Lab** — P1P, P1S, X1C, A1, A1 Mini via local MQTT or cloud API. See `backends/bambu.md` for setup. Requires access code + serial (LAN) or account credentials (cloud).
+- **Bambu Lab (via bambu-gateway)** — P1P, P1S, X1C, A1, A1 Mini via bambu-gateway REST API. Simpler setup: just provide gateway URL + printer serial. See below.
 
 Community can add more backends in `claw3d/backends/`.
+
+### Bambu Lab Printer Setup (via bambu-gateway)
+
+If the user has a Bambu Lab printer, use this setup flow instead of the Moonraker path:
+
+> Let's get your Bambu printer set up. I need:
+>
+> 1. **Printer name** — e.g. "Bambu X1C Workshop"
+> 2. **bambu-gateway URL** — The host:port where bambu-gateway runs (e.g. `10.0.1.50:4844`)
+> 3. **Printer serial** — Found on the printer label or Settings → General → Device Info
+> 4. **OrcaSlicer/BambuStudio project file (.3mf)** — Export from OrcaSlicer: **File → Export → Export 3MF** (or Save Project As)
+
+```bash
+claw3d printer add --name "<name>" --host <gateway_ip> --port <gateway_port> \
+  --backend bambu_gateway --printer-serial <serial> --profile-from-3mf <path>
+```
+
+**Key differences from Moonraker:**
+- `--backend bambu_gateway` is required
+- `--printer-serial` identifies which printer on the gateway
+- The 3MF should come from **OrcaSlicer or BambuStudio** (not Cura)
+- No access codes or MQTT credentials needed — bambu-gateway handles auth internally
+
+### AMS (Automatic Material System) — Bambu Only
+
+```bash
+claw3d ams --printer <bambu_id>          # Show loaded filaments + matched profiles
+claw3d slice ... --tray N                # Use specific AMS tray's filament
+claw3d print --file model.3mf --printer <bambu_id>  # Print 3MF to Bambu
+```
 
 ## Before Printing
 
@@ -64,7 +94,11 @@ Community can add more backends in `claw3d/backends/`.
 ## Print Commands
 
 ```bash
+# Moonraker/PrusaLink: G-code
 claw3d print --gcode model.gcode [--printer id]
+
+# Bambu Gateway: 3MF (use --file for format-agnostic)
+claw3d print --file model.3mf --printer <bambu_id>
 claw3d status [--printer id]
 claw3d pause [--printer id]
 claw3d resume [--printer id]

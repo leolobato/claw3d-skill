@@ -32,6 +32,15 @@ Ask the user only:
 > 1. **Strength** — How strong should it be? (10%, 25%, 50%, 75%, or 100%)
 > 2. **Detail** — How much print detail / quality? (10%, 25%, 50%, 75%, or 100%)
 
+**AMS filament question (Bambu printers only):** When the target printer uses `bambu_gateway`, run `claw3d ams --printer <bambu_id>` before asking the pre-slice questions. If **2+ trays** have filament loaded, add a **Filament** question to the prompt listing the loaded trays:
+
+> 3. **Filament** — Which filament should I use?
+>    - Tray 1: PLA Basic (white)
+>    - Tray 2: PETG Basic (black)
+>    - Tray 3: PLA Matte (red)
+
+Then pass the user's choice as `--tray N` to `claw3d slice`. If only **1 tray** is loaded, skip the question — the CLI auto-selects it.
+
 **Path B: Model from AI or user-provided** — Use `model_<ID>.glb`. No dimensions file. **MUST ask** for max print size, strength, and detail before slicing. Use the printer's build volume (from `claw3d printer list`) as the default max dimension suggestion — use the smallest of width/depth/height.
 
 > Before I slice, I need a few things:
@@ -39,6 +48,8 @@ Ask the user only:
 > 1. **Max print size** — What's the longest dimension you want? (e.g. 100mm or 150mm)
 > 2. **Strength** — How strong should it be? (10%, 25%, 50%, 75%, or 100%)
 > 3. **Detail** — How much print detail / quality? (10%, 25%, 50%, 75%, or 100%)
+
+For Bambu printers with 2+ AMS trays loaded, add the **Filament** question here too (same as Path A above).
 
 **Map percentages to CLI:** 10%→1, 25%→2, 50%→3, 75%→4, 100%→5. Use `--max-dimension <N>`, `--strength`, `--quality`.
 
@@ -173,6 +184,60 @@ claw3d preview --input model.glb --output preview.mp4 --build-volume <WxDxH>
 claw3d gcode-preview --input model.gcode --output gcode_preview.mp4 --build-volume <WxDxH>
 ```
 
+## OrcaSlicer (Bambu Lab Printers)
+
+When the target printer uses the `bambu_gateway` backend, slicing automatically uses **OrcaSlicer** instead of CuraEngine. The `--printer` flag handles slicer selection:
+
+```bash
+# Slice for a Bambu printer — auto-selects OrcaSlicer, outputs .3mf
+claw3d slice -i model_<ID>.glb --printer <bambu_id> -o model_<ID>.3mf --strength 3
+
+# Slice for a Bambu printer with explicit max-dimension (AI models)
+claw3d slice -i model_<ID>.glb --printer <bambu_id> -o model_<ID>.3mf --max-dimension 150 --strength 4
+```
+
+**Key differences from CuraEngine:**
+- **Output is `.3mf`** (not `.gcode`) for Bambu printers. Always use `.3mf` extension in `-o`.
+- **Profiles are auto-selected** from the printer's config (machine + process + filament). No `--profile` needed.
+- **Filament is auto-selected from AMS.** Before slicing, the CLI queries the AMS trays and uses the filament profile matching the loaded material.
+- **Strength/quality presets** work the same way (`--strength 3`, `--quality 4`) — the CLI maps them internally.
+
+### AMS-Aware Filament Selection
+
+Before asking the pre-slice questions for a Bambu printer, run:
+```bash
+claw3d ams --printer <bambu_id>
+```
+This shows loaded filaments with their matched OrcaSlicer profiles.
+
+- **Single tray loaded:** Auto-selected — do NOT ask the user. Mention it when reporting: "Slicing with Bambu PLA Basic (Tray 1, white)"
+- **Multiple trays loaded:** **Ask the user** which filament to use as part of the pre-slice questions (see "AMS filament question" above). Pass their choice as `--tray N` to `claw3d slice`.
+- **No trays loaded:** Warn the user that no filament is detected in the AMS.
+
+### OrcaSlicer Profile Configuration
+
+OrcaSlicer uses three profile types (machine + process + filament) instead of a single CuraEngine profile_id. Profiles are configured per-printer at setup time:
+
+```bash
+# Add Bambu printer with OrcaSlicer profiles
+claw3d printer add --name "Bambu A1" --host <gateway_ip> --port 4844 \
+  --backend bambu_gateway --printer-serial <serial> \
+  --machine-profile GM014 --process-profile GP004 --filament-profiles '["GFL99"]'
+```
+
+Override per-slice with explicit flags if needed:
+```bash
+claw3d slice -i model.stl --printer <bambu_id> --process-profile GP004 -o model.3mf
+```
+
+### Printing with OrcaSlicer Output
+
+After slicing for a Bambu printer, print with:
+```bash
+claw3d print --file model_<ID>.3mf --printer <bambu_id>
+```
+Note: Use `--file` (not `--gcode`) for 3MF files. The `--gcode` flag is kept as an alias for backward compatibility.
+
 ## Slice Flags Reference
 
 | Flag | Description |
@@ -195,5 +260,12 @@ claw3d gcode-preview --input model.gcode --output gcode_preview.mp4 --build-volu
 | `--no-preview-video` | Skip G-code preview video (faster) |
 | `--build-volume` | `WxDxH` mm (e.g. `350x350x350`). Shows build plate + grid in gcode preview. Read from `claw3d printer list`. |
 | `--bed-autocalibration` | Run bed leveling before print. **Default OFF** — only add when user explicitly asks |
+| `--slicer` | Force slicer engine: `curaengine` or `orcaslicer`. Auto-detected from `--printer` backend |
+| `--printer` | Target printer ID. Auto-selects slicer and output format based on backend |
+| `--orcaslicer-url` | OrcaSlicer CLI API URL (default: `CLAW3D_ORCASLICER_URL` or from printer config) |
+| `--machine-profile` | OrcaSlicer machine profile setting_id (override auto-detection) |
+| `--process-profile` | OrcaSlicer process profile setting_id (override auto-detection) |
+| `--filament-profiles` | OrcaSlicer filament profiles as JSON array (override AMS auto-detection) |
+| `--tray` | AMS tray number for filament selection (Bambu printers only) |
 
 <!-- /MODULE: slicing -->
